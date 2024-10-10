@@ -1,14 +1,12 @@
-version: '3.7'
-
 services:
     minio:
         restart: always
         image: minio/minio@sha256:2c8ac2a6255a2fa7b73a0a3647314c07121432b8ca1ce4ed8bfe31ca8495d7f7
         container_name: mlflow_s3
         ports:
-            - "6000:9000"
-            - "6000:9001"
-        command: server /data --console-address ':6001' --address ':6000'
+            - "7000:9000"
+            - "7001:9001"
+        command: server /data --console-address ':7001' --address ':7000'
         environment:
             - MINIO_ROOT_USER=${AWS_ACCESS_KEY_ID}
             - MINIO_ROOT_PASSWORD=${AWS_SECRET_ACCESS_KEY}
@@ -24,8 +22,8 @@ services:
             - .env
         entrypoint: >
             /bin/sh -c "
-            /tmp/wait-for-it.sh minio:6000 &&
-            /usr/bin/mc alias set minio http://minio:6000 ${AWS_ACCESS_KEY_ID} ${AWS_SECRET_ACCESS_KEY} &&
+            /tmp/wait-for-it.sh minio:7000 &&
+            /usr/bin/mc alias set minio http://minio:7000 ${AWS_ACCESS_KEY_ID} ${AWS_SECRET_ACCESS_KEY} &&
             /usr/bin/mc mb minio/mlflow;
             exit 0;
             "
@@ -55,9 +53,9 @@ services:
             - mc
             - db
         ports:
-            - "7000:5000"
+            - "8000:5000"
         environment:
-            - MLFLOW_S3_ENDPOINT_URL=http://minio:6000
+            - MLFLOW_S3_ENDPOINT_URL=http://minio:7000
             - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
             - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
         command: mlflow server --backend-store-uri mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE} --default-artifact-root s3://mlflow/ --host 0.0.0.0
