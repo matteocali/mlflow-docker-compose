@@ -76,3 +76,4 @@ The MLflow tracking server is composed of 3 docker containers:
 
 ## Authentication
 For any doubt on the authentication refer to the [official docs](https://www.mlflow.org/docs/latest/auth/index.html#overview).
+For further user management and configuration refer to this [guide](https://mlflow.org/docs/latest/auth/python-api.html).
