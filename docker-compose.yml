@@ -11,7 +11,7 @@ services:
             - MINIO_ROOT_USER=${AWS_ACCESS_KEY_ID}
             - MINIO_ROOT_PASSWORD=${AWS_SECRET_ACCESS_KEY}
         volumes:
-            - minio_data:/data
+            - <PATH_WHERE_TO_CREATE_VOLUME>/minio_data:/data
 
     mc:
         image: minio/mc:latest
@@ -41,8 +41,14 @@ services:
             - MYSQL_USER=${MYSQL_USER}
             - MYSQL_PASSWORD=${MYSQL_PASSWORD}
             - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
+            interval: 10s  # intervallo tra i controlli
+            timeout: 5s    # timeout per ogni tentativo
+            retries: 5     # tentativi massimi
+            start_period: 30s  # attesa iniziale per il primo controllo
         volumes:
-            - dbdata:/var/lib/mysql
+            - <PATH_WHERE_TO_CREATE_VOLUME>/db_data:/var/lib/mysql
 
     web:
         restart: unless-stopped
@@ -50,16 +56,17 @@ services:
         image: mlflow_server
         container_name: mlflow_server
         depends_on:
-            - mc
-            - db
+            db:
+                condition: service_healthy
+            mc:
+                condition: service_started
         ports:
             - "7500:5000"
         environment:
             - MLFLOW_S3_ENDPOINT_URL=http://minio:7501
             - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
             - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-        command: mlflow server --app-name basic-auth --backend-store-uri mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE} --default-artifact-root s3://mlflow/ --host 0.0.0.0
-
-volumes:
-    dbdata:
-    minio_data:
+            - MLFLOW_AUTH_CONFIG_PATH=/var/lib/mlflow/mlflow_auth/basic-auth.ini
+        command: mlflow server --app-name basic-auth --serve-artifacts --backend-store-uri mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE} --artifacts-destination s3://mlflow/ --host 0.0.0.0
+        volumes:
+            - <PATH_WHERE_TO_CREATE_VOLUME>/mlflow_auth:/var/lib/mlflow/mlflow_auth
